@@ -143,14 +143,20 @@ class FewshotPoseDataset(BaseDataset):
     def get_images(self, img_paths, op_paths, dp_paths, ppl_indices, i, size, params, crop_coords, ref_face_pts=None):
         img_path = img_paths[i]
         op_path = op_paths[i]
+#         TODO:
+# dp_path should not be index i
+# It should be i + 5 to i + 10 or i -5 to i - 10 
+# If i is 40, dp_path should be anywhere from 30-35 or 45-50
         dp_path = dp_paths[i]
         ppl_idx = ppl_indices[i] if ppl_indices is not None else None
                  
         # openpose
-        O, op, crop_coords, face_pts = self.get_image(op_path, size, params, crop_coords, input_type='openpose',
-                                                      ppl_idx=ppl_idx, ref_face_pts=ref_face_pts)
+        O = self.get_image(op_path, size, params, crop_coords, input_type='img')
+#         O, op, crop_coords, face_pts = self.get_image(op_path, size, params, crop_coords, input_type='openpose',
+#                                                       ppl_idx=ppl_idx, ref_face_pts=ref_face_pts)
         # densepose
-        D = self.get_image(dp_path, size, params, crop_coords, input_type='densepose', op=op)
+        D = self.get_image(dp_path, size, params, crop_coords, input_type='img')
+#         D = self.get_image(dp_path, size, params, crop_coords, input_type='densepose', op=op)
         # concatenate both pose maps
         Li = torch.cat([D, O])
 
