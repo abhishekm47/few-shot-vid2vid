@@ -22,7 +22,7 @@ class FewshotPoseDataset(BaseDataset):
         parser.set_defaults(dataroot='datasets/pose/')
         parser.add_argument('--label_nc', type=int, default=0, help='# of input label channels')
         parser.add_argument('--input_nc', type=int, default=6, help='# of input image channels')        
-        parser.add_argument('--aspect_ratio', type=float, default=0.5)
+        parser.add_argument('--aspect_ratio', type=float, default=1)
         parser.add_argument('--pose_type', type=str, default='both', help='only both is supported now')
         parser.add_argument('--remove_face_labels', action='store_true', help='remove face part of labels to prevent overfitting')         
         parser.add_argument('--refine_face', action='store_true', help='if specified, refine face region with an additional generator')  
@@ -41,26 +41,26 @@ class FewshotPoseDataset(BaseDataset):
         root = opt.dataroot 
         if opt.isTrain:
             self.img_paths = sorted(make_grouped_dataset(path.join(root, 'train_images')))
-            self.op_paths = sorted(make_grouped_dataset(path.join(root, 'train_openpose')))
-            self.dp_paths = sorted(make_grouped_dataset(path.join(root, 'train_densepose')))
+            self.op_paths = sorted(make_grouped_dataset(path.join(root, 'train_wav2lip')))
+            self.dp_paths = sorted(make_grouped_dataset(path.join(root, 'train_images')))
             self.ppl_indices = None
-            if path.exists(path.join(root, 'all_subsequences.json')):
-                with open(path.join(root, 'all_subsequences.json')) as f:
-                    all_subsequences = json.loads(f.read())
-                seq_indices = all_subsequences['seq_indices']
-                start_frame_indices = all_subsequences['start_frame_indices']
-                end_frame_indices = all_subsequences['end_frame_indices']
-                img_paths, op_paths, dp_paths = [], [], []
-                for i in range(len(seq_indices)):
-                    seq_idx = seq_indices[i]
-                    start_frame_idx, end_frame_idx = start_frame_indices[i], end_frame_indices[i]
-                    img_paths += [self.img_paths[seq_idx][start_frame_idx : end_frame_idx]]
-                    op_paths += [self.op_paths[seq_idx][start_frame_idx: end_frame_idx]]
-                    dp_paths += [self.dp_paths[seq_idx][start_frame_idx: end_frame_idx]]
-                self.img_paths = img_paths
-                self.op_paths = op_paths
-                self.dp_paths = dp_paths
-                self.ppl_indices = all_subsequences['ppl_indices']
+#             if path.exists(path.join(root, 'all_subsequences.json')):
+#                 with open(path.join(root, 'all_subsequences.json')) as f:
+#                     all_subsequences = json.loads(f.read())
+#                 seq_indices = all_subsequences['seq_indices']
+#                 start_frame_indices = all_subsequences['start_frame_indices']
+#                 end_frame_indices = all_subsequences['end_frame_indices']
+#                 img_paths, op_paths, dp_paths = [], [], []
+#                 for i in range(len(seq_indices)):
+#                     seq_idx = seq_indices[i]
+#                     start_frame_idx, end_frame_idx = start_frame_indices[i], end_frame_indices[i]
+#                     img_paths += [self.img_paths[seq_idx][start_frame_idx : end_frame_idx]]
+#                     op_paths += [self.op_paths[seq_idx][start_frame_idx: end_frame_idx]]
+#                     dp_paths += [self.dp_paths[seq_idx][start_frame_idx: end_frame_idx]]
+#                 self.img_paths = img_paths
+#                 self.op_paths = op_paths
+#                 self.dp_paths = dp_paths
+#                 self.ppl_indices = all_subsequences['ppl_indices']
         else:    
             self.img_paths = sorted(make_dataset(opt.seq_path))
             self.op_paths = sorted(make_dataset(opt.seq_path.replace('images', 'openpose')))
