@@ -19,10 +19,10 @@ from util.distributed import master_only_print as print
 class FewshotPoseDataset(BaseDataset):
     @staticmethod
     def modify_commandline_options(parser, is_train):
-        parser.set_defaults(dataroot='datasets/pose/')
+        parser.set_defaults(dataroot='dataset/raw/')
         parser.add_argument('--label_nc', type=int, default=0, help='# of input label channels')
         parser.add_argument('--input_nc', type=int, default=6, help='# of input image channels')        
-        parser.add_argument('--aspect_ratio', type=float, default=0.5)
+        parser.add_argument('--aspect_ratio', type=float, default=1)
         parser.add_argument('--pose_type', type=str, default='both', help='only both is supported now')
         parser.add_argument('--remove_face_labels', action='store_true', help='remove face part of labels to prevent overfitting')         
         parser.add_argument('--refine_face', action='store_true', help='if specified, refine face region with an additional generator')  
@@ -40,35 +40,35 @@ class FewshotPoseDataset(BaseDataset):
         
         root = opt.dataroot 
         if opt.isTrain:
-            self.img_paths = sorted(make_grouped_dataset(path.join(root, 'train_images')))
-            self.op_paths = sorted(make_grouped_dataset(path.join(root, 'train_openpose')))
-            self.dp_paths = sorted(make_grouped_dataset(path.join(root, 'train_densepose')))
+            self.img_paths = sorted(make_grouped_dataset(path.join(root, 'initial')))
+            self.op_paths = sorted(make_grouped_dataset(path.join(root, 'reference')))
+            self.dp_paths = sorted(make_grouped_dataset(path.join(root, 'initial')))
             self.ppl_indices = None
-            if path.exists(path.join(root, 'all_subsequences.json')):
-                with open(path.join(root, 'all_subsequences.json')) as f:
-                    all_subsequences = json.loads(f.read())
-                seq_indices = all_subsequences['seq_indices']
-                start_frame_indices = all_subsequences['start_frame_indices']
-                end_frame_indices = all_subsequences['end_frame_indices']
-                img_paths, op_paths, dp_paths = [], [], []
-                for i in range(len(seq_indices)):
-                    seq_idx = seq_indices[i]
-                    start_frame_idx, end_frame_idx = start_frame_indices[i], end_frame_indices[i]
-                    img_paths += [self.img_paths[seq_idx][start_frame_idx : end_frame_idx]]
-                    op_paths += [self.op_paths[seq_idx][start_frame_idx: end_frame_idx]]
-                    dp_paths += [self.dp_paths[seq_idx][start_frame_idx: end_frame_idx]]
-                self.img_paths = img_paths
-                self.op_paths = op_paths
-                self.dp_paths = dp_paths
-                self.ppl_indices = all_subsequences['ppl_indices']
+#             if path.exists(path.join(root, 'all_subsequences.json')):
+#                 with open(path.join(root, 'all_subsequences.json')) as f:
+#                     all_subsequences = json.loads(f.read())
+#                 seq_indices = all_subsequences['seq_indices']
+#                 start_frame_indices = all_subsequences['start_frame_indices']
+#                 end_frame_indices = all_subsequences['end_frame_indices']
+#                 img_paths, op_paths, dp_paths = [], [], []
+#                 for i in range(len(seq_indices)):
+#                     seq_idx = seq_indices[i]
+#                     start_frame_idx, end_frame_idx = start_frame_indices[i], end_frame_indices[i]
+#                     img_paths += [self.img_paths[seq_idx][start_frame_idx : end_frame_idx]]
+#                     op_paths += [self.op_paths[seq_idx][start_frame_idx: end_frame_idx]]
+#                     dp_paths += [self.dp_paths[seq_idx][start_frame_idx: end_frame_idx]]
+#                 self.img_paths = img_paths
+#                 self.op_paths = op_paths
+#                 self.dp_paths = dp_paths
+#                 self.ppl_indices = all_subsequences['ppl_indices']
         else:    
             self.img_paths = sorted(make_dataset(opt.seq_path))
-            self.op_paths = sorted(make_dataset(opt.seq_path.replace('images', 'openpose')))
-            self.dp_paths = sorted(make_dataset(opt.seq_path.replace('images', 'densepose')))
+            self.op_paths = sorted(make_dataset(opt.seq_path.replace('initial', 'reference')))
+            self.dp_paths = sorted(make_dataset(opt.seq_path.replace('initial', 'initial')))
 
             self.ref_img_paths = sorted(make_dataset(opt.ref_img_path))
-            self.ref_op_paths = sorted(make_dataset(opt.ref_img_path.replace('images', 'openpose')))
-            self.ref_dp_paths = sorted(make_dataset(opt.ref_img_path.replace('images', 'densepose')))
+            self.ref_op_paths = sorted(make_dataset(opt.ref_img_path.replace('initial', 'reference')))
+            self.ref_dp_paths = sorted(make_dataset(opt.ref_img_path.replace('initial', 'initial')))
 
         self.n_of_seqs = len(self.img_paths)        # number of sequences to train 
         if opt.isTrain: print('%d sequences' % self.n_of_seqs)        
@@ -107,7 +107,7 @@ class FewshotPoseDataset(BaseDataset):
             ref_crop_coords = [None] * opt.n_shot
             for i, idx in enumerate(ref_indices):                
                 ref_size = self.read_data(ref_img_paths[idx]).size
-                Li, Ii, ref_crop_coords[i], ref_face_pts = self.get_images(ref_img_paths, ref_op_paths, ref_dp_paths,
+                Li, Ii, ref_crop_coords[i] = self.get_images(ref_img_paths, ref_op_paths, ref_dp_paths,
                     ref_ppl_indices, idx, ref_size, img_params, self.ref_crop_coords[i])
                 Lr = self.concat_frame(Lr, Li.unsqueeze(0))            
                 Ir = self.concat_frame(Ir, Ii.unsqueeze(0))                            
@@ -125,7 +125,7 @@ class FewshotPoseDataset(BaseDataset):
         L, I = self.L, self.I        
         for t in range(n_frames_total):
             idx = start_idx + t * t_step
-            Lt, It, crop_coords, _ = self.get_images(img_paths, op_paths, dp_paths, ppl_indices, idx, size,
+            Lt, It, crop_coords = self.get_images(img_paths, op_paths, dp_paths, ppl_indices, idx, size,
                 img_params, crop_coords, self.ref_face_pts)
             L = self.concat_frame(L, Lt.unsqueeze(0))
             I = self.concat_frame(I, It.unsqueeze(0))                    
@@ -143,21 +143,42 @@ class FewshotPoseDataset(BaseDataset):
     def get_images(self, img_paths, op_paths, dp_paths, ppl_indices, i, size, params, crop_coords, ref_face_pts=None):
         img_path = img_paths[i]
         op_path = op_paths[i]
-        dp_path = dp_paths[i]
+#         TODO:
+# dp_path should not be index i
+# It should be i + 5 to i + 10 or i -5 to i - 10 
+# If i is 40, dp_path should be anywhere from 30-35 or 45-50
+        j = i
+        if(random.uniform(0, 1) > 0.5):
+            j = i + random.randint(3, 10)
+        else:
+            j = i - random.randint(3, 10)
+        if(j < 0):
+            if(i == 0):
+                j = 3
+            else:
+                j = 0
+        if(j > (len(dp_paths) - 1)):
+            if(i == (len(dp_paths) - 1)):
+                j = len(dp_paths) - 1 - 3
+            else:
+                j = len(dp_paths) - 1
+        dp_path = dp_paths[j]
         ppl_idx = ppl_indices[i] if ppl_indices is not None else None
                  
         # openpose
-        O, op, crop_coords, face_pts = self.get_image(op_path, size, params, crop_coords, input_type='openpose',
-                                                      ppl_idx=ppl_idx, ref_face_pts=ref_face_pts)
+        O = self.get_image(op_path, size, params, crop_coords, input_type='img')
+#         O, op, crop_coords, face_pts = self.get_image(op_path, size, params, crop_coords, input_type='openpose',
+#                                                       ppl_idx=ppl_idx, ref_face_pts=ref_face_pts)
         # densepose
-        D = self.get_image(dp_path, size, params, crop_coords, input_type='densepose', op=op)
+        D = self.get_image(dp_path, size, params, crop_coords, input_type='img')
+#         D = self.get_image(dp_path, size, params, crop_coords, input_type='densepose', op=op)
         # concatenate both pose maps
         Li = torch.cat([D, O])
 
         # RGB image
         Ii = self.get_image(img_path, size, params, crop_coords, input_type='img')
 
-        return Li, Ii, crop_coords, face_pts
+        return Li, Ii, crop_coords
     
     def get_image(self, A_path, size, params, crop_coords, input_type, ppl_idx=None, op=None, ref_face_pts=None):
         if A_path is None: return None, None
@@ -175,7 +196,7 @@ class FewshotPoseDataset(BaseDataset):
 
         else:
             A_img = self.read_data(A_path)            
-            A_img, _ = self.crop_person_region(A_img, crop_coords)            
+        #A_img, _ = self.crop_person_region(A_img, crop_coords,pose_pts,size )            
             if input_type == 'densepose':  # remove other ppl in the densepose map
                 A_img = self.remove_other_ppl(A_img, A_path, crop_coords, op)
         

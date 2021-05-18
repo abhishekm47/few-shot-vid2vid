@@ -62,16 +62,27 @@ def make_dataset(dir, recursive=False, read_cache=False, write_cache=False):
 
 def make_grouped_dataset(dir):
     images = []
+    last_subdir = dir.split('/')[-1]
+    dir = dir.replace(last_subdir, '')
+    #print("dir")
+    #print(dir)
     assert os.path.isdir(dir), '%s is not a valid directory' % dir
-    fnames = sorted(os.walk(dir))
-    for fname in sorted(fnames):
-        paths = []
-        root = fname[0]
-        for f in sorted(fname[2]):
-            if is_image_file(f):
-                paths.append(os.path.join(root, f))
-        if len(paths) > 0:
-            images.append(paths)
+    subdirs = sorted(os.listdir(dir))
+    #print("SUBDIRS")
+    #print(subdirs)
+    for subdir in subdirs:
+        fnames = sorted(os.walk(os.path.join(dir, subdir, last_subdir)))
+        for fname in sorted(fnames):
+            #print("FNAME")
+            #print(fname)
+            paths = []
+            root = fname[0]
+            for f in sorted(fname[2]):
+                if is_image_file(f):
+                    paths.append(os.path.join(root, f))
+            if len(paths) > 0:
+                images.append(paths)
+
     return images
 
 def check_path_valid(A_paths, B_paths):
