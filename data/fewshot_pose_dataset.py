@@ -44,6 +44,7 @@ class FewshotPoseDataset(BaseDataset):
             self.op_paths = sorted(make_grouped_dataset(path.join(root, 'reference')))
             self.dp_paths = sorted(make_grouped_dataset(path.join(root, 'initial')))
             self.ppl_indices = None
+            print(len(self.img_paths))
 #             if path.exists(path.join(root, 'all_subsequences.json')):
 #                 with open(path.join(root, 'all_subsequences.json')) as f:
 #                     all_subsequences = json.loads(f.read())
@@ -149,17 +150,17 @@ class FewshotPoseDataset(BaseDataset):
 # If i is 40, dp_path should be anywhere from 30-35 or 45-50
         j = i
         if(random.uniform(0, 1) > 0.5):
-            j = i + random.randint(3, 10)
+            j = i + random.randint(0, 2)
         else:
-            j = i - random.randint(3, 10)
+            j = i - random.randint(0, 2)
         if(j < 0):
             if(i == 0):
-                j = 3
+                j = 2
             else:
                 j = 0
         if(j > (len(dp_paths) - 1)):
             if(i == (len(dp_paths) - 1)):
-                j = len(dp_paths) - 1 - 3
+                j = len(dp_paths) - 1 - 2
             else:
                 j = len(dp_paths) - 1
         dp_path = dp_paths[j]
